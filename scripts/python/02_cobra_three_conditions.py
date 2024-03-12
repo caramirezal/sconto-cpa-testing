@@ -59,10 +59,12 @@ test_adata = adata[ adata.obs_names.isin(test.obs_names)]
 train_adata
 test_adata
 
+
 # create model
 model = OntoVAEcpa(train_adata,
                    root_layer_latent=False,
                    activation_fn_dec=nn.ReLU,
+                   neuronnum=1,
                    #use_batch_norm_dec=True,
                    #use_activation_dec=True,
                    #hidden_layers_enc=3,
@@ -73,12 +75,12 @@ model = OntoVAEcpa(train_adata,
 
 
 # init neptune run
-#run = neptune.init_run(
-#    project="scontocpa/scontocpa-testing",
-#    api_token="eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiJmZmE2NjY0NS00YjUxLTQ4ZTktYmUzMi05YmUxMzAzY2UzNmMifQ=="
-#) 
-runid = 'SCON-15'
-#runid = str(vars(run)['_sys_id'])
+run = neptune.init_run(
+    project="scontocpa/scontocpa-testing",
+    api_token="eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiJmZmE2NjY0NS00YjUxLTQ4ZTktYmUzMi05YmUxMzAzY2UzNmMifQ=="
+) 
+#runid = 'SCON-15'
+runid = str(vars(run)['_sys_id'])
 modelpath = '/workspace/sconto-cpa-testing/data/models/' + runid
 if not os.path.isdir(modelpath):
     os.mkdir(modelpath)
@@ -86,6 +88,8 @@ if not os.path.isdir(modelpath):
 path2figures = path2project + "/figures" + '/' + runid
 if not os.path.exists(path2figures + '/' + runid):
     os.makedirs(path2figures + '/' + runid)
+
+
 
 
 '''
@@ -101,7 +105,7 @@ model.train_model(modelpath,
                    #pen_coeff=2,
                    #epochs=300,
                    #adv_step=1,
-                   run=run)   
+                   run=run)  
 '''
 
 
