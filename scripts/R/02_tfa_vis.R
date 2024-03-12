@@ -11,8 +11,10 @@ library(ggplot2)
 library(gridExtra)
 library(ggrepel)
 library(ComplexHeatmap)
+library(umap)
 
 
+test_lin_layer = FALSE
 
 
 path2project <- '/home/bq_cramirez/sconto-cpa-testing'
@@ -26,13 +28,23 @@ if ( ! dir.exists(path2figures)){
     dir.create(path2figures)
 }
 
+if ( test_lin_layer == FALSE ) {
+    pattern = 'test_lin_layer_False_z_'
+} else {
+    pattern = 'test_z_'
+}
+
 path2cobra_results <- paste0(path2project, '/data/models/SCON-15/')
 tfa.files <- list.files(path2cobra_results,
-                        pattern = 'test_z')
+                        pattern = pattern)
 tfa.files.full_names <- paste0(path2cobra_results, tfa.files)
 
+if ( test_lin_layer == FALSE ) {
+    names <- gsub('test_lin_layer_False_z|.tsv.gz', '', tfa.files)
+} else {
+    names <- gsub('test_z_|.tsv.gz', '', tfa.files)
+}
 
-names <- gsub('test_z_|.tsv.gz', '', tfa.files)
 
 
 ## Reading TF annotations
@@ -122,11 +134,12 @@ plot_heatmap <- function(view=view){
                     heatmap_top_tfs=h2))
 }
 
-
+names(names) <- names
 heatmaps_list <- lapply(names, plot_heatmap)
 
 
-pdf(paste0(path2figures, '/heatmap_mean_tfa.pdf'),
+
+pdf(paste0(path2figures, '/heatmap_mean_tfa_lin_layer_False_z.pdf'),
     height=65, width=20)
 
 grid.newpage()
@@ -154,7 +167,7 @@ dev.off()
 
 
 
-pdf(paste0(path2figures, '/heatmap_mean_tfa_top_50.pdf'),
+pdf(paste0(path2figures, '/heatmap_mean_tfa_top_50_lin_layer_False_z.pdf'),
     height=10, width=20)
 
 grid.newpage()
@@ -176,6 +189,101 @@ pushViewport(viewport(layout.pos.row = 1, layout.pos.col = 4))
 draw(heatmaps_list[names[4]][[1]][[2]], newpage = FALSE)
 upViewport()
 
+dev.off()
+
+
+
+
+##------------------------------------------------------------------------
+## UMAP projections
+umap.list <- lapply(tfa.df.list, 
+                    function(df) {
+                        mtx <- select(df, -cell_type, -stimulation_time) %>%
+                                      as.matrix 
+                        umap(mtx) 
+                                  }
+                        )
+
+umap.df.list <- lapply(names, 
+                       function(name){
+                            res <- umap.list[name][[1]]
+                            df <- res$layout %>% as.data.frame()
+                            colnames(df) <- paste0('UMAP', 1:2)
+                            df <- cbind(df, 
+                                        select(tfa.df.list[name][[1]],
+                                               -`cell_type`,
+                                               -`stimulation_time`), 
+                                               cell_anns)
+                            return(df)
+
+})
+
+lapply(umap.df.list, colnames)
+
+view <- 'basal'
+plot_view <- function(view){
+      umap.cell_type <- umap.df.list[view][[1]] %>%
+        ggplot(aes(x=UMAP1, y=UMAP2,
+                   colour=cell_type)) +
+            geom_point(size=0.1) +
+            theme_classic() +
+            scale_colour_manual(values=cell_type_colors) +
+            labs(colour='',
+                 title=view)
+
+      umap.stimulation_time <- umap.df.list[view][[1]] %>%
+        ggplot(aes(x=UMAP1, y=UMAP2,
+                   colour=stimulation_time)) +
+            geom_point(size=0.1) +
+            theme_classic() +
+            scale_colour_manual(values=stimulation_time_colors) +
+            labs(colour='')
+
+       return(list(cell_type=umap.cell_type, 
+                   stimulation_time=umap.stimulation_time))
+}
+
+umap_plot_list <- lapply(names, plot_view)
+
+view <- 'basal'
+pdf(paste0(path2figures, '/umap_views.pdf'),
+    width=12, height=6)
+grid.arrange(umap_plot_list$basal$cell_type,
+             umap_plot_list$basal$stimulation_time,
+             umap_plot_list$cell_type$cell_type,
+             umap_plot_list$cell_type$stimulation_time,
+             umap_plot_list$stimulation_time$cell_type,
+             umap_plot_list$stimulation_time$stimulation_time,
+             umap_plot_list$total$cell_type,
+             umap_plot_list$total$stimulation_time,
+             ncol=4
+)
+dev.off()
+
+tfa_stimulation_time <- umap.df.list$"stimulation_time"
+selected_tfs <- tfa_stimulation_time %>%
+                    select(AHR:ZNF91) %>%
+                        apply(2, var) %>%
+                        sort(decreasing=TRUE) %>%
+                        head(50) %>%
+                        names()
+
+
+pdf(paste0(path2figures, '/umap_tfa_top_tfs_lin_layer_False_z.pdf'),
+     width=20, height=5)
+umap_list <- lapply(selected_tfs,
+       function(tf){
+           umap.df.list$"stimulation_time" %>%
+           ggplot(aes(x=UMAP1, y=UMAP2,
+                    colour=!!sym(tf))) +
+             geom_point(size=0.1) +
+            theme_void() +
+             scale_colour_viridis() +
+            labs(colour='',
+                 title=tf) +
+                 theme(legend.position="none")
+})
+gridExtra::grid.arrange(grobs=umap_list, ncol=10)
 dev.off()
 
 
