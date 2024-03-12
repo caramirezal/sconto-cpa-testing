@@ -16,6 +16,8 @@ library(umap)
 
 test_lin_layer = FALSE
 
+set.seed(333)
+
 
 path2project <- '/home/bq_cramirez/sconto-cpa-testing'
 
@@ -23,7 +25,9 @@ path2project <- '/home/bq_cramirez/sconto-cpa-testing'
 source(paste0(path2project, "/scripts/R/settings.R"))
 
 
-path2figures <- paste0(path2project, '/figures/01_tfa_visualization')
+#path2figures <- paste0(path2project, '/figures/01_tfa_visualization')
+#path2figures <- paste0(path2project, '/figures/01_tfa_visualization_two_conditions')
+path2figures <- paste0(path2project, '/figures/01_tfa_visualization_three_conditions')
 if ( ! dir.exists(path2figures)){
     dir.create(path2figures)
 }
@@ -34,13 +38,19 @@ if ( test_lin_layer == FALSE ) {
     pattern = 'test_z_'
 }
 
-path2cobra_results <- paste0(path2project, '/data/models/SCON-15/')
+
+## Two conditions
+path2cobra_results <- paste0(path2project, '/data/models/SCON-20/')
+
+## Three conditions
+#path2cobra_results <- paste0(path2project, '/data/models/SCON-15/')
+
 tfa.files <- list.files(path2cobra_results,
                         pattern = pattern)
 tfa.files.full_names <- paste0(path2cobra_results, tfa.files)
 
 if ( test_lin_layer == FALSE ) {
-    names <- gsub('test_lin_layer_False_z|.tsv.gz', '', tfa.files)
+    names <- gsub('test_lin_layer_False_z_|.tsv.gz', '', tfa.files)
 } else {
     names <- gsub('test_z_|.tsv.gz', '', tfa.files)
 }
@@ -94,6 +104,12 @@ tfa_mean.df.list <- lapply(
 view <- "basal"
 
 
+max_value <- sapply(tfa_mean.df.list, 
+       function(df) select(df, -stimulation_time, -cell_type) %>% max ) %>% max
+min_value <- 0
+col_fun = circlize::colorRamp2(c(min_value, (max_value/2), max_value), viridis(3))
+
+
 plot_heatmap <- function(view=view){ 
         df <- tfa_mean.df.list[view][[1]]
         mtx <- select(df, -cell_type, -stimulation_time) %>%
@@ -115,10 +131,22 @@ plot_heatmap <- function(view=view){
                   head(n_top)   %>%
                   names()
 
+        path2tfs <- paste0(path2project, 
+                           '/analysis/top_var_tfs_',
+                           'three_conditions')
+        if ( ! dir.exists(path2tfs) ) {
+                dir.create(path2tfs)
+        }
+        writeLines(tfa_top,
+                   paste0(path2tfs, 
+                         '/top_var_tfs_',
+                         view,
+                         '.txt'))
+
         h1 <- Heatmap(
                 mtx,
                 top_annotation = column_anns,
-                col=viridis(100, option="magma"),
+                col=col_fun,
                 column_title = view
                 )
 
@@ -126,8 +154,8 @@ plot_heatmap <- function(view=view){
         h2 <- Heatmap(
                       mtx[tfa_top, ],
                       top_annotation = column_anns,
-                      col=viridis(100, option="magma"),
-                      column_title = view
+                      col=col_fun,
+                      column_title = view,
                       )
 
         return(list(heatmap_all_tfs=h1,
@@ -200,7 +228,7 @@ umap.list <- lapply(tfa.df.list,
                     function(df) {
                         mtx <- select(df, -cell_type, -stimulation_time) %>%
                                       as.matrix 
-                        umap(mtx) 
+                        umap(mtx, n_neighbors = 300, min_dist = 0.1) 
                                   }
                         )
 
@@ -260,31 +288,33 @@ grid.arrange(umap_plot_list$basal$cell_type,
 )
 dev.off()
 
-tfa_stimulation_time <- umap.df.list$"stimulation_time"
-selected_tfs <- tfa_stimulation_time %>%
-                    select(AHR:ZNF91) %>%
-                        apply(2, var) %>%
-                        sort(decreasing=TRUE) %>%
-                        head(50) %>%
-                        names()
+#tfa_stimulation_time <- umap.tfa_mean.df.list$"stimulation_time"
+#selected_tfs <- tfa_stimulation_time %>%
+#                    select(AHR:ZNF91) %>%
+#                        apply(2, var) %>%
+#                        sort(decreasing=TRUE) %>%
+#                        head(50) %>%
+#                        names()
 
 
-pdf(paste0(path2figures, '/umap_tfa_top_tfs_lin_layer_False_z.pdf'),
-     width=20, height=5)
-umap_list <- lapply(selected_tfs,
-       function(tf){
-           umap.df.list$"stimulation_time" %>%
-           ggplot(aes(x=UMAP1, y=UMAP2,
-                    colour=!!sym(tf))) +
-             geom_point(size=0.1) +
-            theme_void() +
-             scale_colour_viridis() +
-            labs(colour='',
-                 title=tf) +
-                 theme(legend.position="none")
-})
-gridExtra::grid.arrange(grobs=umap_list, ncol=10)
-dev.off()
+
+
+#pdf(paste0(path2figures, '/umap_tfa_top_tfs_lin_layer_False_z.pdf'),
+#     width=20, height=5)
+#umap_list <- lapply(selected_tfs,
+#       function(tf){
+#           umap.df.list$"stimulation_time" %>%
+#           ggplot(aes(x=UMAP1, y=UMAP2,
+#                    colour=!!sym(tf))) +
+#             geom_point(size=0.1) +
+#            theme_void() +
+#             scale_colour_viridis() +
+#            labs(colour='',
+#                 title=tf) +
+#                 theme(legend.position="none")
+#})
+#gridExtra::grid.arrange(grobs=umap_list, ncol=10)
+#dev.off()
 
 
 
