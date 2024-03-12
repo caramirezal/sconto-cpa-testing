@@ -46,6 +46,7 @@ adata = setup_anndata_ontovae(adata,
                               ontobj,
                               top_thresh=1000,
                               bottom_thresh=1,
+                              neuronnum=1,
                               cpa_keys=cpa_keys) 
 # split into train-val and test
 
@@ -57,6 +58,7 @@ train_adata, test_adata = split_adata(adata)
 model = OntoVAEcpa(train_adata,
                    root_layer_latent=False,
                    activation_fn_dec=nn.ReLU,
+                   neuronnum=1,
                   )
 
 
@@ -66,8 +68,8 @@ run = neptune.init_run(
     project="scontocpa/scontocpa-testing",
     api_token="eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiJmZmE2NjY0NS00YjUxLTQ4ZTktYmUzMi05YmUxMzAzY2UzNmMifQ=="
 ) 
-runid = 'SCON-16'
-#runid = str(vars(run)['_sys_id'])
+#runid = 'SCON-16'
+runid = str(vars(run)['_sys_id'])
 modelpath = '/workspace/sconto-cpa-testing/data/models/' + runid
 if not os.path.isdir(modelpath):
     os.mkdir(modelpath)
