@@ -51,17 +51,18 @@ rownames(vega_latent) <- cell_anns$`...1`
 
 
 selected_tfs_vega <- apply(vega_latent, 2, var) %>%
-                            sort(decreasin=TRUE) %>%
+                            sort(decreasing=TRUE) %>%
                             head(50) %>%
                             names()
 selected_tfs_vega
 
 
-column_anns <- columnAnnotation(
+column_anns_vega <- columnAnnotation(
     cell_type=cell_anns$cell_type,
     stimulation_time=cell_anns$stimulation_time,
     col = list(cell_type=cell_type_colors,
-               stimulation_time=stimulation_time_colors))
+               stimulation_time=stimulation_time_colors),
+    show_legend = FALSE)
 
 
 
@@ -74,7 +75,7 @@ pdf(paste0(path2figures, '/heatmap_vega.pdf'),
     height=12, width=10)
 Heatmap(
     t(vega_latent[ , selected_tfs_vega]),
-    top_annotation = column_anns,
+    top_annotation = column_anns_vega,
     col=viridis(30),
     column_title = 'VEGA',
     show_column_names = FALSE
@@ -93,11 +94,6 @@ dev.off()
 test_lin_layer = FALSE
 
 
-path2figures <- paste0(path2project, '/figures/01_tfa_visualization_three_conditions')
-if ( ! dir.exists(path2figures)){
-    dir.create(path2figures)
-}
-
 if ( test_lin_layer == FALSE ) {
     pattern = 'test_lin_layer_False_z_'
 } else {
@@ -106,7 +102,7 @@ if ( test_lin_layer == FALSE ) {
 
 
 ## Three conditions
-path2cobra_results <- paste0(path2project, '/data/models/SCON-22/')
+path2cobra_results <- paste0(path2project, '/data/models/SCON-27/')
 
 tfa.files <- list.files(path2cobra_results,
                         pattern = pattern)
@@ -151,3 +147,119 @@ names(tfa.df.list) <- names
 
 
 
+tfa_stimulation_cobra <- tfa.df.list$"stimulation_time"
+mtx <- select(tfa_stimulation_cobra, -cell_type, -stimulation_time)
+mtx <- as.matrix(mtx)
+
+
+selected_tfs_cobra <- apply(mtx, 2, var) %>%
+                            sort(decreasing=TRUE) %>%
+                            head(50) %>%
+                            names()
+selected_tfs_cobra
+
+
+column_anns_cobra <- columnAnnotation(
+    cell_type=cell_anns$cell_type,
+    stimulation_time=cell_anns$stimulation_time,
+    col = list(cell_type=cell_type_colors,
+               stimulation_time=stimulation_time_colors),
+    show_annotation_name = FALSE)
+
+
+tfs <- selected_tfs_vega[selected_tfs_vega %in% colnames(mtx)]
+pdf(paste0(path2figures, '/heatmap_cobra.pdf'),
+    height=12, width=10)
+Heatmap(
+        t(scale(mtx[, tfs])),
+        top_annotation = column_anns_cobra,
+        column_title = "COBRA",
+        col=viridis(30),
+       show_column_names = FALSE
+)
+dev.off()
+
+
+
+
+
+##--------------------------------------------------------------
+## 
+
+selected_tfs_vega <- apply(vega_latent, 2, var) %>%
+                            sort(decreasing=TRUE) %>%
+                            head(25) %>%
+                            names()
+selected_tfs_vega
+
+selected_tfs_cobra <- apply(mtx, 2, var) %>%
+                            sort(decreasing=TRUE) %>%
+                            head(25) %>%
+                            names()
+selected_tfs_cobra
+
+
+selected_join_tfs <- c(selected_tfs_vega, 
+                       selected_tfs_cobra) 
+selected_join_tfs <- selected_join_tfs[selected_join_tfs!="UNANNOTATED_0"]
+selected_join_tfs <- unique(selected_join_tfs)
+
+heatmap_cobra <- Heatmap(
+        t(mtx[, selected_join_tfs]),
+        top_annotation = column_anns_cobra,
+        column_title = "COBRA",
+    col=viridis(30),
+    show_column_names = FALSE
+)
+
+heatmap_vega <- Heatmap(
+    t(scale(vega_latent[ , selected_join_tfs])),
+    top_annotation = column_anns_vega,
+    col=viridis(30),
+    column_title = 'VEGA',
+    show_column_names = FALSE
+                      )
+
+heatmap <- heatmap_cobra + heatmap_vega
+
+pdf(paste0(path2figures, '/heatmaps_tfs_cobra_vs_vega.pdf'),
+    height=12, width=10)
+heatmap_cobra + heatmap_vega
+dev.off()
+
+
+
+
+##-----------------------------------------------------------------
+mtx.list <- lapply(names, 
+     function(name){
+        df <- tfa.df.list[name][[1]]
+        mtx <- select(df, -cell_type, -stimulation_time)
+       as.matrix(mtx)
+     }
+)
+names(mtx.list) <- names 
+
+heatmap_cobra.list <- lapply(names,
+      function(name){
+           mtx <- mtx.list[name][[1]]
+           Heatmap(
+               t(mtx[, selected_join_tfs]),
+               top_annotation = column_anns_cobra,
+               column_title = paste("COBRA - ", name),
+               col=viridis(30),
+               show_column_names = FALSE
+        )
+      }
+)
+names(heatmap_cobra.list) <- names
+
+
+
+pdf(paste0(path2figures, '/heatmaps_tfs_cobra_vs_vega.pdf'),
+    height=12, width=10)
+heatmap_cobra.list$total +
+    heatmap_cobra.list$stimulation_time + 
+    heatmap_cobra.list$cell_type +
+    heatmap_cobra.list$basal + heatmap_vega
+dev.off()
